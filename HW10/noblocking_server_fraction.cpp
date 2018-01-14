@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <client.h>
+#include "noblocking_server_class.h"
 
 CClient::CClient(const SOCKET sClient, const sockaddr_in &addrClient) {
     m_hThreadRecv = NULL;
@@ -27,7 +27,7 @@ BOOL CClient::StartRunning (void) {
     m_bConning = TRUE;
 
     unsigned long ulThreadId;
-    m_hThreadRecv = CreateThread(NULL, 0, RecvDataThread, this, 0, &uiThreadId);
+    m_hThreadRecv = CreateThread(NULL, 0, RecvDataThread, this, 0, &ulThreadId);
     if (NULL == m_hThreadRecv)
         return FALSE;
     else
@@ -50,7 +50,7 @@ DWORD CClient::RecvDataThread(void *pParam) {
 
             if (WSAEWOULDBLOCK == nErrCode)
                 continue;
-            else if (WSAENETOWN == nErrCode || WSAETIMEDOUT == nErrCode || WSAECONNREST == nErrCode)
+            else if (WSAENETDOWN == nErrCode || WSAETIMEDOUT == nErrCode || WSAECONNRESET == nErrCode)
                 break;
         }
 
@@ -73,7 +73,7 @@ DWORD CClient::RecvDataThread(void *pParam) {
 void CClient::HandleData(const char* pExpr) {
     memset(m_data.buf, 0, MAX_NUM_BUF);
 
-    if (BYEBYE == (phdr)pExpr->type) {
+    if (BYEBYE == ((phdr)pExpr) -> type) {
         EnterCriticalSection(&m_cs);
         phdr pHeaderSend = (phdr)m_data.buf;
         pHeaderSend->type = BYEBYE;
@@ -140,10 +140,10 @@ DWORD CClient::SendDataThread(void *pParam) {
             int val = send(pClient->m_socket, pClient->m_data.buf, nSendlen, 0);
 
             if (SOCKET_ERROR == val) {
-                int nerrCode = WSAGetLastError();
+                int nErrCode = WSAGetLastError();
                 if (nErrCode == WSAEWOULDBLOCK)
                     continue;
-                else if (WSAENETDOWN == nErrCode || WSAETIMEDOUT == nErrCode || WSAECONNREST == nErrCode) {
+                else if (WSAENETDOWN == nErrCode || WSAETIMEDOUT == nErrCode || WSAECONNRESET == nErrCode) {
                     LeaveCriticalSection(&pClient -> m_cs);
                     pClient -> m_bConning = FALSE;
                     pClient -> m_bExit = TRUE;

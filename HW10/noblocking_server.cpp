@@ -1,13 +1,13 @@
 #include<iostream>
 #include<winsock2.h>
 #include<list>
-#include<client.h>
+#include "noblocking_server_class.h"
 
 #pragma comment(lib, "ws2_32.lib")
 using namespace std;
 typedef list<CClient*> CLIENTLIST;
 
-#define SERVERPORT 5566
+#define SERVERPORT 1234
 #define SERVER_SETUP_FAIL 1
 #define TIMEFOR_THREAD_EXIT 5000
 #define TIMEFOR_THREAD_HELP 1500
@@ -86,14 +86,14 @@ BOOL InitSocket(void){
 		return FALSE;
 	unsigned long ul = 1;
 	retVal = ioctlsocket(sServer, FIONBIO, (unsigned long*)&ul);
-	if (SOCK_ERROR == retVal)
+	if (SOCKET_ERROR == retVal)
 		return FALSE;
 	sockaddr_in servAddr;
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_port = htons(SERVERPORT);
 	servAddr.sin_addr.S_un.S_addr = INADDR_ANY;
-	retVal = bind(sServer, (struct sockaddr*)&serAddr, sizeof(serAddr));
-	if (SOCK_ERROR == retVal)
+	retVal = bind(sServer, (struct sockaddr*)&servAddr, sizeof(servAddr));
+	if (SOCKET_ERROR == retVal)
 		return FALSE;
 	retVal = listen(sServer, SOMAXCONN);
 	if (SOCKET_ERROR == retVal)
@@ -108,7 +108,7 @@ BOOL StartService(void){
 	do {
 		cin >> cInput;
 		if ('s' == cInput || 'S' == cInput){
-			if (CreateHelperAndAcceptThread())	
+			if (CreateHelperAndAcceptThread())
 				ShowServerStartMsg(TRUE);
 			else
 				retVal = FALSE;
@@ -167,7 +167,7 @@ void ShowTipMsg(BOOL bFirstInput){
 }
 
 void ExitServer(void){
-	DeleteCritalSection(&csClientList);
+	DeleteCriticalSection(&csClientList);
 	CloseHandle(hServerEvent);
 	closesocket(sServer);
 	WSACleanup();
@@ -182,7 +182,7 @@ BOOL CreateHelperAndAcceptThread(void) {
 		bServerRunning = FALSE;
 		return FALSE;
 	}
-	else 
+	else
 		CloseHandle(hThreadHelp);
 
 	hThreadAccept = CreateThread(NULL, 0, AcceptThread, NULL, 0, &ulThreadId);
@@ -190,7 +190,7 @@ BOOL CreateHelperAndAcceptThread(void) {
 		bServerRunning = FALSE;
 		return FALSE;
 	}
-	else 
+	else
 		CloseHandle(hThreadAccept);
 	return TRUE;
 }
@@ -235,7 +235,7 @@ DWORD __stdcall AcceptThread(void* pParam) {
 				Sleep(TIMEFOR_THREAD_SLEEP);
 				continue;
 			}
-			else 
+			else
 				return 0;
 		}
 		else {
@@ -283,7 +283,7 @@ DWORD __stdcall HelperThread(void* pParam) {
 		EnterCriticalSection(&csClientList);
 
 		while (0 != clientlist.size()) {
-			iter = client.begin();
+			iter = clientlist.begin();
 			for (iter ; iter != clientlist.end() ; ) {
 				CClient *pClient = (CClient*)*iter;
 				if (pClient -> IsExit()) {
@@ -291,7 +291,7 @@ DWORD __stdcall HelperThread(void* pParam) {
 					delete pClient;
 					pClient = NULL;
 				}
-				else 
+				else
 					iter++;
 			}
 			Sleep(TIMEFOR_THREAD_SLEEP);
